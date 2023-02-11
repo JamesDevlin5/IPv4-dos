@@ -28,15 +28,13 @@ def mk_header_factory(src_ip, dst_ip):
     ihl = 5
     # IPv4
     ver = 4
-    # Type of service
-    # TODO: could this be urgent/critical?
+    # Type of service / ECN (Don't mess with it)
     tos = 0
     # Handled by OS
     tot_len = 0
     # Flags | Offset
-    # > Sets the "more fragments" bit
-    # > And displays this as the very last fragment
-    frag_off = int("0b0011111111111111", base=2)
+    # > Displays this as the very last fragment
+    frag_off = int("0b0001111111111111", base=2)
     ttl = 255
     proto = socket.IPPROTO_TCP
     # Handled by OS
